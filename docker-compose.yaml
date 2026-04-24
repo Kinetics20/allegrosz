@@ -1,0 +1,12 @@
+services:
+  db_allegrosz:
+    image: postgres:16
+    ports:
+      - "5439:5432"
+    volumes:
+      - postgres_volume:/var/lib/postgresql/data
+    env_file:
+      - ./.env
+
+volumes:
+  postgres_volume:
