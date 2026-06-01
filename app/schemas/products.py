@@ -19,5 +19,5 @@ class ProductCreate(BaseModel):
 
 
 class ProductRead(ProductCreate):
-    sku: str
+    id: int
     model_config = {'from_attributes': True}
