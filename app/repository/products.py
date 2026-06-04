@@ -1,5 +1,6 @@
 from decimal import Decimal
 
+from dns.e164 import query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 
@@ -26,6 +27,42 @@ class ProductRepository:
             select(Product).offset(skip).limit(limit)
         )
         return list(result.scalars().all())
+
+    @staticmethod
+    async def get_many(
+            db: AsyncSession,
+            search: str | None = None,
+            min_price: Decimal | None = None,
+            max_price: Decimal | None = None,
+            skip: int = 0,
+            limit: int = 100
+    ) -> list[Product]:
+
+        query = select(Product)
+
+        if search:
+            term = f'%{search}%'
+            query = query.where(
+                or_(
+                    Product.name.ilike(term),
+                    Product.description.ilike(term),
+                    Product.sku.ilike(term)
+                )
+            )
+
+        if min_price is not None:
+            query = query.where(Product.price >= min_price)
+
+        if max_price is not None:
+            query = query.where(Product.price <= max_price)
+
+        result = await db.execute(
+            query.offset(skip).limit(limit)
+        )
+
+        return list(result.scalars().all())
+
+
 
     @staticmethod
     async def search(db: AsyncSession, term: str, skip: int = 0, limit: int = 100) -> list[Product]:
