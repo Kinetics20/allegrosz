@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from dns.e164 import query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_
 
@@ -61,8 +60,6 @@ class ProductRepository:
         )
 
         return list(result.scalars().all())
-
-
 
     @staticmethod
     async def search(db: AsyncSession, term: str, skip: int = 0, limit: int = 100) -> list[Product]:
