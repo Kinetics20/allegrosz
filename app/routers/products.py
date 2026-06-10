@@ -259,7 +259,7 @@ async def update_product(
         return await get_product_or_404(db, product_id)
 
     if 'sku' in updates:
-        await ensure_sku_available(db, updates['sku'], product_id)
+        await ensure_sku_available(db, product_id, updates["sku"])
 
     try:
         updated_product = await product_repository.update(db, product_id, **updates)

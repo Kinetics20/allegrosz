@@ -7,6 +7,7 @@ from app.models.products import Product
 
 
 class ProductRepository:
+    UPDATE_FIELDS = frozenset({"name", "description", "sku", "price"})
 
     @staticmethod
     async def get(db: AsyncSession, product_id: int) -> Product | None:
@@ -125,23 +126,23 @@ class ProductRepository:
     async def update(
             db: AsyncSession,
             product_id: int,
-            name: str | None,
-            description: str | None,
-            price: Decimal | None,
-            sku: str | None
+            **fields: object
+
     ) -> Product | None:
         product = await ProductRepository.get(db, product_id)
         if not product:
             return None
 
-        if name is not None:
-            product.name = name
-        if description is not None:
-            product.description = description
-        if price is not None:
-            product.price = price
-        if sku is not None:
-            product.sku = sku
+        invalid_fields = set(fields) - ProductRepository.UPDATE_FIELDS
+
+        if invalid_fields:
+            raise ValueError(f'Invalid product update fields: {", ".join(sorted(invalid_fields))}.')
+
+        if not fields:
+            return product
+
+        for field, value in fields.items():
+            setattr(product, field, value)
 
         db.add(product)
         await db.commit()

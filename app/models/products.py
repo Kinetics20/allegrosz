@@ -1,9 +1,10 @@
 from decimal import Decimal
 
-from sqlalchemy.orm import Mapped, mapped_column
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Text, Numeric
 
 from app.db.base import Base
+from app.models.inventory import InventoryItem
 
 
 class Product(Base):
@@ -14,6 +15,8 @@ class Product(Base):
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     price: Mapped[Decimal] = mapped_column(Numeric(precision=9, scale=2), nullable=False)
     sku: Mapped[str] = mapped_column(String(9), nullable=False, unique=True, index=True)
+
+    inventory_items: Mapped[list['InventoryItem']] = relationship('InventoryItem', back_populates='product', cascade='all, delete')
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}(id={self.id!r}, name={self.name!r}, sku={self.sku!r})'
