@@ -1,14 +1,12 @@
 from datetime import datetime, UTC
-from typing import TYPE_CHECKING
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import ForeignKey, Integer, DateTime, func
 
-from app.db.base import Base
+from app.db.session import Base
 
-if TYPE_CHECKING:
-    from app.models.products import Product
-    from app.models.location import Location
+from app.models.location import Location
+from app.models.products import Product
 
 
 class InventoryItem(Base):

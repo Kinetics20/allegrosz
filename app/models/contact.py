@@ -1,7 +1,7 @@
 from sqlalchemy.orm import Mapped, mapped_column
 from sqlalchemy import String, Text
 
-from app.db.base import Base
+from app.db.session import Base
 
 
 class Contact(Base):

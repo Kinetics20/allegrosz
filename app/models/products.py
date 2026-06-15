@@ -3,8 +3,8 @@ from decimal import Decimal
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from sqlalchemy import String, Text, Numeric
 
-from app.db.base import Base
-from app.models.inventory import InventoryItem
+from app.db.session import Base
+
 
 
 class Product(Base):
