@@ -7,6 +7,7 @@ from app.models.location import Location
 
 
 class LocationRepository:
+    UPDATE_FIELDS = frozenset({'name', 'address', 'capacity'})
 
     @staticmethod
     async def get(db: AsyncSession, location_id: int) -> Location | None:
@@ -95,6 +96,29 @@ class LocationRepository:
         await db.delete(location)
         await db.commit()
         return True
+
+    @staticmethod
+    async def update(db: AsyncSession, location_id: int, **fields: object) -> Location | None:
+        location = await LocationRepository.get(db, location_id)
+        if not location:
+            return None
+
+        invalid_fields = set(fields) - LocationRepository.UPDATE_FIELDS
+
+        if invalid_fields:
+            raise ValueError(f'Invalid location update fields: {', '.join(sorted(invalid_fields))}')
+
+        if not fields:
+            return location
+
+        for field, value in fields.items():
+            setattr(location, field, value)
+
+        db.add(location)
+        await db.commit()
+        await db.refresh(location)
+
+        return location
 
 
 location_repository = LocationRepository()
