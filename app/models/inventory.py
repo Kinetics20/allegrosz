@@ -1,7 +1,7 @@
 from datetime import datetime, UTC
 
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import ForeignKey, Integer, DateTime, func
+from sqlalchemy import ForeignKey, Integer, DateTime, text, FetchedValue
 
 from app.db.session import Base
 
@@ -17,11 +17,11 @@ class InventoryItem(Base):
 
     quantity: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     reordered_point: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
-    last_updated: Mapped[datetime] = mapped_column(
-        DateTime,
-        nullable=False,
-        default=lambda: datetime.now(tz=UTC),
-        onupdate=func.now()
+    last_updated: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        server_default=text("now()"),
+        server_onupdate=FetchedValue(),
     )
 
     product: Mapped['Product'] = relationship('Product', back_populates='inventory_items')

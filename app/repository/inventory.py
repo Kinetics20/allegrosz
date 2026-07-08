@@ -1,15 +1,15 @@
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.inventory import InventoryItem
+
 
 class InventoryRepository:
 
     @staticmethod
     async def get(db: AsyncSession, product_id: int, location_id: int) -> InventoryItem | None:
         return await db.get(InventoryItem, (product_id, location_id))
-
 
     @staticmethod
     async def get_detail(db: AsyncSession, product_id: int, location_id: int) -> InventoryItem | None:
@@ -22,7 +22,7 @@ class InventoryRepository:
                     InventoryItem.location
                 )
             ).where(
-               InventoryItem.product_id == product_id,
+                InventoryItem.product_id == product_id,
                 InventoryItem.location_id == location_id
             )
         )
@@ -30,9 +30,17 @@ class InventoryRepository:
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_many(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[InventoryItem]:
+    async def get_many(db: AsyncSession, product_id: int | None = None , location_id: int | None = None, skip: int = 0, limit: int = 100) -> list[InventoryItem]:
+        query = select(InventoryItem)
+
+        if product_id is not None:
+            query = query.where(InventoryItem.product_id == product_id)
+
+        if location_id is not None:
+            query = query.where(InventoryItem.location_id == location_id)
+
         result = await db.execute(
-            select(InventoryItem).offset(skip).limit(limit)
+            query.order_by(InventoryItem.product_id, InventoryItem.location_id).offset(skip).limit(limit)
         )
         return list(result.scalars().all())
 
@@ -51,7 +59,8 @@ class InventoryRepository:
         return list(result.scalars().all())
 
     @staticmethod
-    async def get_by_location(db: AsyncSession, location_id: int, skip: int = 0, limit: int = 100) -> list[InventoryItem]:
+    async def get_by_location(db: AsyncSession, location_id: int, skip: int = 0, limit: int = 100) -> list[
+        InventoryItem]:
         result = await db.execute(
             select(InventoryItem)
             .options(
@@ -59,9 +68,40 @@ class InventoryRepository:
                     InventoryItem.product
                 )
             )
-            .where(InventoryItem.location_id == location_id).order_by(InventoryItem.product_id).offset(skip).limit(limit)
+            .where(InventoryItem.location_id == location_id).order_by(InventoryItem.product_id).offset(skip).limit(
+                limit)
         )
 
         return list(result.scalars().all())
 
+    @staticmethod
+    async def get_total_quantity_by_product(db: AsyncSession, product_id: int) -> int:
+        result = await db.scalar(
+            select(func.coalesce(func.sum(InventoryItem.quantity), 0))
+            .where(InventoryItem.product_id == product_id)
+        )
+        return int(result or 0)
 
+    @staticmethod
+    async def create(db: AsyncSession, product_id: int, location_id: int, quantity: int,
+                     reordered_point: int = 0) -> InventoryItem:
+        inventory = InventoryItem(product_id=product_id, location_id=location_id, quantity=quantity,
+                                  reordered_point=reordered_point
+                                  )
+        db.add(inventory)
+        await db.commit()
+        await db.refresh(inventory)
+        return inventory
+
+    @staticmethod
+    async def delete(db: AsyncSession, product_id: int, location_id: int) -> bool:
+        inventory = await InventoryRepository.get(db, product_id, location_id)
+        if not inventory:
+            return False
+
+        await db.delete(inventory)
+        await db.commit()
+        return True
+
+
+inventory_repository = InventoryRepository()
