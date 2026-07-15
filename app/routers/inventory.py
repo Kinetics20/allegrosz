@@ -10,7 +10,8 @@ from app.db.session import get_db
 from app.repository.inventory import inventory_repository
 from app.repository.products import product_repository
 from app.repository.location import location_repository
-from app.schemas.inventory import InventoryRead, InventoryCreate, InventoryWithLocation
+from app.schemas.inventory import InventoryRead, InventoryCreate, InventoryWithLocation, ProductInventoryTotal, \
+    InventoryWithProduct
 
 router = APIRouter(prefix='/inventory', tags=['Inventory'])
 
@@ -68,3 +69,25 @@ async def list_inventory_by_product(db: DbSession, product_id: int, skip: int = 
     await ensure_product_exists(db, product_id)
 
     return await inventory_repository.get_by_product(db, product_id, skip, limit)
+
+
+@router.get('/products/{product_id}/total', response_model=ProductInventoryTotal)
+async def get_product_inventory_total(db: DbSession, product_id: int) -> ProductInventoryTotal:
+    total_quantity = await inventory_repository.get_total_quantity_by_product(db, product_id)
+    return ProductInventoryTotal(product_id=product_id, total_quantity=total_quantity)
+
+
+@router.get('/locations/{location_id}', response_model=list[InventoryWithProduct])
+async def list_inventory_by_location(db: DbSession, location_id: int, skip: int = 0, limit: int = 100) -> list[
+    InventoryItem]:
+    await ensure_location_exists(db, location_id)
+
+    return await inventory_repository.get_by_location(db, location_id, skip, limit)
+
+
+@router.delete('/{product_id}/{location_id}', status_code=status.HTTP_204_NO_CONTENT)
+async def delete_inventory_item(db: DbSession, product_id: int, location_id: int) -> None:
+    inventory_item = await inventory_repository.delete(db, product_id, location_id)
+
+    if inventory_item is False:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
