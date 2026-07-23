@@ -6,10 +6,31 @@ from app.models.inventory import InventoryItem
 
 
 class InventoryRepository:
+    UPDATE_FIELDS = frozenset({'quantity', 'reordered_point'})
 
     @staticmethod
     async def get(db: AsyncSession, product_id: int, location_id: int) -> InventoryItem | None:
         return await db.get(InventoryItem, (product_id, location_id))
+
+    @staticmethod
+    async def get_low_stock(db: AsyncSession, skip: int = 0, limit: int = 100) -> list[InventoryItem]:
+        result = await db.execute(
+            select(InventoryItem).options(
+                selectinload(
+                    InventoryItem.product
+                ),
+                selectinload(
+                    InventoryItem.location
+                )
+            ).where(
+                InventoryItem.quantity < InventoryItem.reordered_point
+            ).order_by(InventoryItem.product_id).offset(skip).limit(limit)
+        )
+
+        return list(result.scalars().all())
+
+
+
 
     @staticmethod
     async def get_detail(db: AsyncSession, product_id: int, location_id: int) -> InventoryItem | None:
@@ -24,13 +45,14 @@ class InventoryRepository:
             ).where(
                 InventoryItem.product_id == product_id,
                 InventoryItem.location_id == location_id
-            )
+            ).order_by(InventoryItem.product_id)
         )
 
         return result.scalar_one_or_none()
 
     @staticmethod
-    async def get_many(db: AsyncSession, product_id: int | None = None , location_id: int | None = None, skip: int = 0, limit: int = 100) -> list[InventoryItem]:
+    async def get_many(db: AsyncSession, product_id: int | None = None, location_id: int | None = None, skip: int = 0,
+                       limit: int = 100) -> list[InventoryItem]:
         query = select(InventoryItem)
 
         if product_id is not None:
@@ -103,5 +125,50 @@ class InventoryRepository:
         await db.commit()
         return True
 
+    @staticmethod
+    async def set_stock(db: AsyncSession, product_id: int, location_id: int, quantity: int,
+                        reordered_point: int | None = None) -> InventoryItem | None:
+        if quantity < 0:
+            return None
+
+        inventory_item = await InventoryRepository.get(db, product_id, location_id)
+
+        if not inventory_item:
+            inventory_item = InventoryItem(product_id=product_id, location_id=location_id, quantity=quantity,
+                                           reordered_point=reordered_point or 0)
+        else:
+            inventory_item.quantity = quantity
+            if reordered_point is not None:
+                inventory_item.reordered_point = reordered_point
+
+        db.add(inventory_item)
+        await db.commit()
+        await db.refresh(inventory_item)
+        return inventory_item
+
+    @staticmethod
+    async def update(db: AsyncSession, product_id: int, location_id: int, **fields: object) -> InventoryItem | None:
+        inventory_item = await InventoryRepository.get(db, product_id, location_id)
+
+        if not inventory_item:
+            return None
+
+        invalid_fields = set(fields) - InventoryRepository.UPDATE_FIELDS
+
+        if invalid_fields:
+            raise ValueError(f'Invalid inventory update fields: {', '.join(sorted(invalid_fields))}')
+
+        if not fields:
+            return inventory_item
+
+        for field, value in fields.items():
+            setattr(inventory_item, field, value)
+
+        db.add(inventory_item)
+        await db.commit()
+        await db.refresh(inventory_item)
+
+        return inventory_item
+        
 
 inventory_repository = InventoryRepository()

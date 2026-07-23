@@ -11,7 +11,7 @@ from app.repository.inventory import inventory_repository
 from app.repository.products import product_repository
 from app.repository.location import location_repository
 from app.schemas.inventory import InventoryRead, InventoryCreate, InventoryWithLocation, ProductInventoryTotal, \
-    InventoryWithProduct
+    InventoryWithProduct, InventoryUpdate, InventoryDetailRead
 
 router = APIRouter(prefix='/inventory', tags=['Inventory'])
 
@@ -38,6 +38,11 @@ async def get_inventory(db: DbSession, product_id: Annotated[int | None, Query(g
         list[
             InventoryItem]:
     return await inventory_repository.get_many(db, product_id, location_id, skip, limit)
+
+
+@router.get('/low-stock', response_model=list[InventoryDetailRead])
+async def list_low_stock_inventory(db: DbSession, skip: int = 0, limit: int = 100) -> list[InventoryDetailRead]:
+    return await inventory_repository.get_low_stock(db, skip, limit)
 
 
 @router.post('/', response_model=InventoryRead)
@@ -91,3 +96,36 @@ async def delete_inventory_item(db: DbSession, product_id: int, location_id: int
 
     if inventory_item is False:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND)
+
+
+@router.put('/{product_id}/{location_id}', response_model=InventoryRead)
+async def set_inventory_stock(db: DbSession, product_id: int, location_id: int, quantity: int,
+                              reordered_point: int | None = None) -> InventoryRead:
+    await ensure_product_exists(db, product_id)
+    await ensure_location_exists(db, location_id)
+
+    inventory_item = await inventory_repository.set_stock(db, product_id=product_id, location_id=location_id,
+                                                          quantity=quantity, reordered_point=reordered_point)
+    if inventory_item is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Inventory item not found.')
+
+    return inventory_item
+
+
+@router.patch('/{product_id}/{location_id}', response_model=InventoryRead)
+async def update_inventory_item(db: DbSession, product_id: int, location_id: int,
+                                inventory: InventoryUpdate) -> InventoryRead:
+    updates = inventory.model_dump(exclude_unset=True)
+
+    if updates is None:
+        inventory = await inventory_repository.get(db, product_id, location_id)
+        if inventory is not None:
+            return inventory
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Inventory item not found.')
+
+    inventory = await inventory_repository.update(db, product_id, location_id, **updates)
+
+    if inventory is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail='Inventory item not found.')
+
+    return inventory

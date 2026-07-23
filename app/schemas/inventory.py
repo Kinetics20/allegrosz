@@ -82,7 +82,7 @@ class InventorySetStock(BaseModel):
         description="Absolute stock quantity to store.",
         examples=[75],
     )
-    reorder_point: int | None = Field(
+    reordered_point: int | None = Field(
         default=None,
         ge=0,
         description="Optional new reorder point. Omit to keep the current value.",
@@ -106,7 +106,7 @@ class InventoryUpdate(BaseModel):
         description="New absolute stock quantity. Omit to keep the current value.",
         examples=[80],
     )
-    reorder_point: int | None = Field(
+    reordered_point: int | None = Field(
         default=None,
         ge=0,
         description="New reorder point. Omit to keep the current value.",
@@ -121,7 +121,7 @@ class InventoryUpdate(BaseModel):
         }
     )
 
-    @field_validator("quantity", "reorder_point")
+    @field_validator("quantity", "reordered_point")
     @classmethod
     def validate_not_null(cls, value: int | None) -> int:
         if value is None:
