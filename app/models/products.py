@@ -17,6 +17,7 @@ class Product(Base):
     sku: Mapped[str] = mapped_column(String(9), nullable=False, unique=True, index=True)
 
     inventory_items: Mapped[list['InventoryItem']] = relationship('InventoryItem', back_populates='product', cascade='all, delete')
+    reviews: Mapped[list['ProductReview']] = relationship('ProductReview', back_populates='product', cascade='all, delete')
 
     def __repr__(self) -> str:
         return f'{type(self).__name__}(id={self.id!r}, name={self.name!r}, sku={self.sku!r})'
